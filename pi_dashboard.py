@@ -15,7 +15,7 @@ from pathlib import Path
 from threading import RLock, Thread
 from zoneinfo import ZoneInfo
 
-from monitoring import PollGate, SimulatedAvailability
+from monitoring import SimulatedAvailability
 
 DB = Path(os.environ.get("TGTG_DASHBOARD_DB", "bag-dashboard.sqlite3"))
 TZ = ZoneInfo(os.environ.get("TGTG_TIMEZONE", "America/New_York"))
@@ -189,6 +189,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/":
             return self.respond(200, HTML, "text/html; charset=utf-8")
+        if self.path == "/api/observations":
+            with LOCK, connect() as db:
+                rows = db.execute(
+                    "SELECT bag_id,arm_date,observed_at,available FROM observations "
+                    "ORDER BY id DESC LIMIT 100"
+                ).fetchall()
+                return self.respond(200, [dict(row) for row in rows])
         if self.path == "/api/bags":
             with LOCK, connect() as db:
                 expire_sessions(db)
