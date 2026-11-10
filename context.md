@@ -1,17 +1,19 @@
 # Project context
 
 ## Goal
-Raspberry Pi 5 dashboard for prioritized scheduled Too Good To Go bag monitoring and guarded checkout.
+Raspberry Pi 5 prioritized bag watchlist with scheduled monitoring and guarded checkout.
 
 ## Merged
-- PR #1: local-only SQLite dashboard.
-- PR #2: scheduler state transition regression tests (not independently executed).
-- PR #3: touch pointer reorder, desktop drag and up/down fallback.
+- PR #1: local SQLite dashboard.
+- PR #2: session state fixes and regression tests.
+- PR #3: mobile pointer priority reorder.
+- PR #4: daily/weekday/weekend schedules and configurable windows; custom-window timeout fix.
 
 ## Current PR
-- Configurable window duration (1-120 minutes), weekdays/weekends/every day, SQLite migration for existing databases.
-- Prototype still depends on GET /api/bags to evaluate sessions; not a background monitor.
-- Tests and visible browser validation pending.
+- Independent background scheduler tick every five seconds, with transaction commit and error isolation.
+- No Too Good To Go network monitoring or purchase integration.
+- Restart-safe schedule occurrence persistence, DST handling, and complete tests still pending.
+- No visible browser test executed in this chat.
 
 ## Constraints
-Medium thinking; visible non-headless browser tests. No purchase/credentials currently connected. Keep local-only until authenticated and secured. Every PR updates context.md and next.md.
+Medium thinking; visible non-headless browser testing only. No unauthenticated remote exposure, no stored payment secrets. Every PR updates context.md and next.md.
