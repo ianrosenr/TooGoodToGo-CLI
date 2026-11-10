@@ -44,7 +44,8 @@ def test_availability_can_cycle_without_stale_true_state():
         CREATE TABLE bags (
             id INTEGER PRIMARY KEY, name TEXT, drop_time TEXT, priority INTEGER,
             enabled INTEGER, status TEXT, last_session TEXT,
-            window_minutes INTEGER, days TEXT, arm_date TEXT
+            window_minutes INTEGER, days TEXT, arm_date TEXT,
+            last_checked_at TEXT, last_check_available INTEGER
         );
         CREATE TABLE observations (
             id INTEGER PRIMARY KEY, bag_id INTEGER NOT NULL,
@@ -52,7 +53,7 @@ def test_availability_can_cycle_without_stale_true_state():
             available INTEGER NOT NULL,
             UNIQUE(bag_id, arm_date, available)
         );
-        INSERT INTO bags VALUES
+        INSERT INTO bags (id,name,drop_time,priority,enabled,status,last_session,window_minutes,days,arm_date) VALUES
             (1,'Test','12:00',1,1,'watching',NULL,5,'all','2026-11-09');
     """)
     now = datetime(2026, 11, 9, 12, 1, tzinfo=TZ)
