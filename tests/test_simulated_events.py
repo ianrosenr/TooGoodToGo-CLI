@@ -34,3 +34,33 @@ def test_simulated_event_is_deduplicated_per_arm_date():
     assert db.execute("SELECT count(*) FROM observations").fetchone()[0] == 1
     expire_sessions(db, datetime(2026, 11, 9, 12, 6, tzinfo=TZ))
     assert observe_simulated(db, source, now) == []
+
+
+def test_availability_can_cycle_without_stale_true_state():
+    db = sqlite3.connect(":memory:")
+    db.row_factory = sqlite3.Row
+    db.executescript("""
+        CREATE TABLE bags (
+            id INTEGER PRIMARY KEY, name TEXT, drop_time TEXT, priority INTEGER,
+            enabled INTEGER, status TEXT, last_session TEXT,
+            window_minutes INTEGER, days TEXT, arm_date TEXT
+        );
+        CREATE TABLE observations (
+            id INTEGER PRIMARY KEY, bag_id INTEGER NOT NULL,
+            arm_date TEXT NOT NULL, observed_at TEXT NOT NULL,
+            available INTEGER NOT NULL,
+            UNIQUE(bag_id, arm_date, available)
+        );
+        INSERT INTO bags VALUES
+            (1,'Test','12:00',1,1,'watching',NULL,5,'all','2026-11-09');
+    """)
+    now = datetime(2026, 11, 9, 12, 1, tzinfo=TZ)
+    assert len(observe_simulated(db, SimulatedAvailability([1]), now)) == 1
+    assert observe_simulated(db, SimulatedAvailability([]), now) == []
+    assert db.execute(
+        "SELECT available FROM observations ORDER BY id DESC LIMIT 1"
+    ).fetchone()[0] == 0
+    assert len(observe_simulated(db, SimulatedAvailability([1]), now)) == 1
+    assert db.execute(
+        "SELECT available FROM observations ORDER BY id DESC LIMIT 1"
+    ).fetchone()[0] == 1
