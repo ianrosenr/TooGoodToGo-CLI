@@ -15,6 +15,8 @@ from pathlib import Path
 from threading import RLock, Thread
 from zoneinfo import ZoneInfo
 
+from monitoring import PollGate, SimulatedAvailability
+
 DB = Path(os.environ.get("TGTG_DASHBOARD_DB", "bag-dashboard.sqlite3"))
 TZ = ZoneInfo(os.environ.get("TGTG_TIMEZONE", "America/New_York"))
 LOCK = RLock()
@@ -89,6 +91,11 @@ def initialize():
         db.execute("UPDATE bags SET enabled=0,status='disabled' WHERE enabled=1 AND arm_date IS NULL")
         if "days" not in cols:
             db.execute("ALTER TABLE bags ADD COLUMN days TEXT NOT NULL DEFAULT 'all'")
+        db.execute("""CREATE TABLE IF NOT EXISTS observations (
+            id INTEGER PRIMARY KEY, bag_id INTEGER NOT NULL,
+            arm_date TEXT NOT NULL, observed_at TEXT NOT NULL,
+            available INTEGER NOT NULL,
+            UNIQUE(bag_id, arm_date, available))""")
 
 
 def list_bags(db):
@@ -124,7 +131,29 @@ def expire_sessions(db, now=None):
             db.execute("UPDATE bags SET status='watching',last_session=? WHERE id=?", (bag["arm_date"], bag["id"]))
 
 
-def scheduler_loop(interval_seconds=0.25):
+def observe_simulated(db, source, now=None):
+    """Record availability once per bag/session/outcome, without buying.
+
+    The caller holds LOCK and a transaction. A repeated available event
+    cannot create duplicate notifications for the same armed occurrence.
+    """
+    now = now or datetime.now(TZ)
+    events = []
+    for bag in list_bags(db):
+        if not bag["enabled"] or bag["status"] != "watching" or not bag["arm_date"]:
+            continue
+        result = source.check(bag["id"])
+        cursor = db.execute(
+            "INSERT OR IGNORE INTO observations(bag_id,arm_date,observed_at,available) VALUES(?,?,?,?)",
+            (bag["id"], bag["arm_date"], now.isoformat(), int(result.available)),
+        )
+        if cursor.rowcount and result.available:
+            events.append({"bag_id": bag["id"], "arm_date": bag["arm_date"],
+                           "event": "available_simulated"})
+    return events
+
+
+def scheduler_loop(interval_seconds=0.25, source=None):
     """Tick session state frequently without relying on browser refreshes.
 
     Database transactions are committed per tick; failures are logged and
@@ -134,6 +163,9 @@ def scheduler_loop(interval_seconds=0.25):
         try:
             with LOCK, connect() as db:
                 expire_sessions(db)
+                if source is not None:
+                    for event in observe_simulated(db, source):
+                        print(f"SIMULATION {event}", flush=True)
         except (OSError, sqlite3.Error, ValueError) as exc:
             print(f"Scheduler tick failed: {exc}", flush=True)
         time.sleep(interval_seconds)
@@ -245,6 +277,11 @@ if __name__ == "__main__":
     tick_seconds = float(os.environ.get("TGTG_SCHEDULER_TICK_SECONDS", "0.25"))
     if not 0.05 <= tick_seconds <= 60:
         raise ValueError("TGTG_SCHEDULER_TICK_SECONDS must be between 0.05 and 60")
-    Thread(target=scheduler_loop, args=(tick_seconds,), daemon=True,
+    # Simulation is opt-in; never issue remote inventory or checkout requests.
+    simulated_ids = os.environ.get("TGTG_SIMULATED_AVAILABLE_IDS", "").strip()
+    source = SimulatedAvailability(
+        [int(part.strip()) for part in simulated_ids.split(",") if part.strip()]
+    ) if simulated_ids else None
+    Thread(target=scheduler_loop, args=(tick_seconds, source), daemon=True,
            name="bag-scheduler").start()
     ThreadingHTTPServer(("127.0.0.1", 8765), Handler).serve_forever()
