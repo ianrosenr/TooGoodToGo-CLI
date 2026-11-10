@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 
 from monitoring import SimulatedAvailability
 from purchase_limits import dollars_to_cents
-from simulated_checkout import simulate_checkout
+from simulated_checkout import recover_simulated_reservations, simulate_checkout
 
 DB = Path(os.environ.get("TGTG_DASHBOARD_DB", "bag-dashboard.sqlite3"))
 TZ = ZoneInfo(os.environ.get("TGTG_TIMEZONE", "America/New_York"))
@@ -375,6 +375,10 @@ if __name__ == "__main__":
     source = SimulatedAvailability(
         [int(part.strip()) for part in simulated_ids.split(",") if part.strip()]
     ) if simulated_ids else None
+    with LOCK, connect() as db:
+        recovered = recover_simulated_reservations(db)
+    if recovered:
+        print(f"Recovered {recovered} simulated pending reservations", flush=True)
     Thread(target=scheduler_loop, args=(tick_seconds, source), daemon=True,
            name="bag-scheduler").start()
     ThreadingHTTPServer(("127.0.0.1", 8765), Handler).serve_forever()
