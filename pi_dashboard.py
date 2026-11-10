@@ -211,6 +211,14 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/":
             return self.respond(200, HTML, "text/html; charset=utf-8")
+        if self.path == "/api/purchase-history":
+            with LOCK, connect() as db:
+                rows = db.execute(
+                    "SELECT r.bag_id,b.name,r.purchase_day,r.price_cents,r.state "
+                    "FROM purchase_reservations r LEFT JOIN bags b ON b.id=r.bag_id "
+                    "ORDER BY r.purchase_day DESC,r.id DESC LIMIT 100"
+                ).fetchall()
+                return self.respond(200, [dict(row) for row in rows])
         if self.path == "/api/purchase-summary":
             day = datetime.now(TZ).date().isoformat()
             with LOCK, connect() as db:
@@ -219,7 +227,13 @@ class Handler(BaseHTTPRequestHandler):
                     "FROM purchase_reservations WHERE purchase_day=? "
                     "AND state IN ('pending','confirmed')", (day,)
                 ).fetchone()
-                return self.respond(200, dict(totals) | {"day": day, "simulated": True})
+                caps = db.execute("SELECT max_cents,max_bags FROM purchase_limits WHERE id=1").fetchone()
+                return self.respond(200, dict(totals) | {
+                    "day": day, "simulated": True,
+                    "max_cents": caps["max_cents"], "max_bags": caps["max_bags"],
+                    "remaining_cents": None if caps["max_cents"] is None else max(0, caps["max_cents"] - totals["cents"]),
+                    "remaining_bags": None if caps["max_bags"] is None else max(0, caps["max_bags"] - totals["bags"]),
+                })
         if self.path == "/api/limits":
             with LOCK, connect() as db:
                 return self.respond(200, dict(db.execute(
