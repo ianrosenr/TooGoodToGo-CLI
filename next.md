@@ -1,7 +1,7 @@
 # Next action
 
-1. Run pytest and validate browser UI with visible non-headless browser; fix regressions.
-2. Implement SQLite BEGIN IMMEDIATE transaction boundary for future concurrent checkout workers.
-3. Improve event history: record every availability transition and prevent stale availability.
-4. Add mock checkout failure/retry and pending reservation reconciliation.
-5. Research supported TGTG inventory/payment flows and rate limits; secure Pi deployment.
+1. Run dashboard pytest suite and fix failures. Inspect GitHub Actions status.
+2. Confirm repaired dashboard module imports and starts; test GET /api/limits, /api/purchase-summary, /api/purchase-history.
+3. Add non-headless browser test of the mobile dashboard.
+4. Harden simulated checkout: interrupted reservations, retry states and startup recovery.
+5. Package Pi systemd service and documented secure access. Real API integration remains blocked.
