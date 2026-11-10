@@ -56,11 +56,12 @@ function render(){root.replaceChildren();bags.forEach((b,i)=>{
  if(steps!==0)await move(i,Math.max(0,Math.min(bags.length-1,i+steps)));
  });
  handle.addEventListener('pointercancel',()=>{touchStart=null});
- const details=node('div','details');details.append(node('strong','',b.name),node('small','',b.status+' · '+(b.arm_date||'not armed')+' · ));
+ const details=node('div','details');details.append(node('strong','',b.name),node('small','',b.status+' · '+(b.arm_date||'not armed')+' · $'+(b.price_cents===null?'?':(b.price_cents/100).toFixed(2))+' · Priority '+(i+1)));
  const time=node('input');time.type='time';time.value=b.drop_time;time.title='Daily drop time';time.onchange=()=>update(b.id,{drop_time:time.value});
  const duration=node('input');duration.type='number';duration.min=1;duration.max=120;duration.value=b.window_minutes;duration.title='Monitoring window (minutes)';duration.onchange=()=>update(b.id,{window_minutes:Number(duration.value)});
  const days=node('select');days.title='Schedule';for(const [v,t] of [['all','Every day'],['weekdays','Weekdays'],['weekends','Weekends']]){const o=node('option','',t);o.value=v;days.append(o)}days.value=b.days;days.onchange=()=>update(b.id,{days:days.value});
- const price=node('input');price.type='number';price.min=0;price.step='0.01';price.placeholder='Price toggle.type='checkbox';toggle.checked=b.enabled;toggle.setAttribute('aria-label','Enable '+b.name);toggle.onchange=()=>update(b.id,{enabled:toggle.checked});
+ const price=node('input');price.type='number';price.min=0;price.step='0.01';price.value=b.price_cents===null?'':(b.price_cents/100).toFixed(2);price.title='Bag price';price.onchange=()=>update(b.id,{price:price.value});
+ const toggle=node('input');toggle.type='checkbox';toggle.checked=b.enabled;toggle.setAttribute('aria-label','Enable '+b.name);toggle.onchange=()=>update(b.id,{enabled:toggle.checked});
  const up=node('button','', '↑');up.title='Move up';up.onclick=()=>move(i,i-1);
  const down=node('button','','↓');down.title='Move down';down.onclick=()=>move(i,i+1);
  row.append(handle,details,time,duration,days,price,toggle,up,down);
@@ -73,7 +74,8 @@ async function move(from,to){if(from<0||to<0||to>=bags.length||from===to)return;
 document.querySelector('#add').onsubmit=async e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.target));try{await api('/api/bags','POST',data);e.target.reset();await refresh()}catch(err){msg.textContent=err.message}};
 async function loadLimits(){const limits=await api('/api/limits');document.querySelector('#maxDollars').value=limits.max_cents===null?'':(limits.max_cents/100).toFixed(2);document.querySelector('#maxBags').value=limits.max_bags??''}
 document.querySelector('#saveLimits').onclick=async()=>{try{const dollars=document.querySelector('#maxDollars').value;const bags=document.querySelector('#maxBags').value;await api('/api/limits','PUT',{max_dollars:dollars===''?null:dollars,max_bags:bags===''?null:Number(bags)});document.querySelector('#limitStatus').textContent='Saved'}catch(e){document.querySelector('#limitStatus').textContent=e.message}};
-async function loadSummary(){try{const s=await api('/api/purchase-summary');document.querySelector('#purchaseSummary').textContent='Today reserved/simulated: 
+async function loadSummary(){try{const s=await api('/api/purchase-summary');document.querySelector('#purchaseSummary').textContent='Today reserved/simulated: $'+(s.cents/100).toFixed(2)+' · '+s.bags+' bags · Remaining: '+(s.remaining_cents===null?'Unlimited dollars':'$'+(s.remaining_cents/100).toFixed(2))+' / '+(s.remaining_bags===null?'Unlimited bags':s.remaining_bags+' bags')}catch(e){msg.textContent=e.message}}
+refresh().catch(e=>msg.textContent=e.message);loadLimits().catch(e=>msg.textContent=e.message);loadSummary();
 </script></html>"""
 
 
