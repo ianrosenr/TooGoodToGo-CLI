@@ -178,7 +178,7 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("Invalid name")
             with LOCK, connect() as db:
                 priority = db.execute("SELECT COALESCE(MAX(priority),0)+1 FROM bags").fetchone()[0]
-                db.execute("INSERT INTO bags(name,drop_time,priority,window_minutes) VALUES(?,?,?,?)",
+                db.execute("INSERT INTO bags(name,drop_time,priority,window_minutes,enabled,status) VALUES(?,?,?,?,0,'disabled')",
                            (name, time, priority, duration))
             self.respond(201, {"ok": True})
         except (ValueError, KeyError, TypeError, json.JSONDecodeError) as e:
