@@ -3,7 +3,10 @@ import sqlite3
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from simulated_checkout import recover_simulated_reservations, simulate_checkout
+from simulated_checkout import (
+    recover_simulated_reservations,
+    simulate_checkout,
+)
 
 
 def test_priority_skips_unaffordable_and_is_idempotent():
