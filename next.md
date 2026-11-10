@@ -1,7 +1,7 @@
 # Next action
 
-1. Run pytest and resolve any failures, including manual arming migrations.
-2. Wire offline simulated observations into the scheduler with idempotent event recording.
-3. Research TGTG-supported APIs, request limits and checkout terms before adding remote adapter.
-4. Add secure Pi deployment, notifications and non-headless browser tests.
-5. Add guarded checkout only after verified authorization and idempotency.
+1. Execute tests and inspect the live dashboard with a visible, non-headless browser.
+2. Add secure read-only real inventory adapter only after investigating supported APIs and provider rate limits.
+3. Separate remote polling from 250ms local scheduler; use a shared rate gate and Retry-After.
+4. Add notifications and purchase-confirmed permanent disable with idempotency safeguards.
+5. Secure Pi deployment, mobile access and checkout feasibility.
