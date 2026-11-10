@@ -1,7 +1,7 @@
 # Next action
 
-1. Run dashboard pytest suite and fix failures. Inspect GitHub Actions status.
-2. Confirm repaired dashboard module imports and starts; test GET /api/limits, /api/purchase-summary, /api/purchase-history.
-3. Add non-headless browser test of the mobile dashboard.
-4. Harden simulated checkout: interrupted reservations, retry states and startup recovery.
-5. Package Pi systemd service and documented secure access. Real API integration remains blocked.
+1. Review PR for restart-safe simulated checkout and Pi systemd packaging; wait for all CI checks.
+2. Test Raspberry Pi startup and SSH tunnel on actual hardware.
+3. Add authenticated access only if remote connectivity is needed.
+4. Capture and review sanitized TGTG API traffic before considering a live adapter.
+5. Real checkout/payment remains unimplemented; never interpret simulated confirmation as purchase.
