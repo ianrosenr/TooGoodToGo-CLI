@@ -48,7 +48,7 @@ function render(){root.replaceChildren();bags.forEach((b,i)=>{
  if(steps!==0)await move(i,Math.max(0,Math.min(bags.length-1,i+steps)));
  });
  handle.addEventListener('pointercancel',()=>{touchStart=null});
- const details=node('div','details');details.append(node('strong','',b.name),node('small','',b.status+' · Priority '+(i+1)));
+ const details=node('div','details');details.append(node('strong','',b.name),node('small','',b.status+' · '+(b.arm_date||'not armed')+' · Priority '+(i+1)));
  const time=node('input');time.type='time';time.value=b.drop_time;time.title='Daily drop time';time.onchange=()=>update(b.id,{drop_time:time.value});
  const duration=node('input');duration.type='number';duration.min=1;duration.max=120;duration.value=b.window_minutes;duration.title='Monitoring window (minutes)';duration.onchange=()=>update(b.id,{window_minutes:Number(duration.value)});
  const days=node('select');days.title='Schedule';for(const [v,t] of [['all','Every day'],['weekdays','Weekdays'],['weekends','Weekends']]){const o=node('option','',t);o.value=v;days.append(o)}days.value=b.days;days.onchange=()=>update(b.id,{days:days.value});
@@ -202,8 +202,12 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("Invalid days")
             with LOCK, connect() as db:
                 if "enabled" in body:
-                    db.execute("UPDATE bags SET enabled=?,status=?,last_session=NULL WHERE id=?",
-                               (int(body["enabled"]), "armed" if body["enabled"] else "disabled", bag_id))
+                    row = db.execute("SELECT * FROM bags WHERE id=?", (bag_id,)).fetchone()
+                    if row is None:
+                        raise ValueError("Bag not found")
+                    arm_date = next_arm_date(dict(row), datetime.now(TZ)) if body["enabled"] else None
+                    db.execute("UPDATE bags SET enabled=?,status=?,last_session=NULL,arm_date=? WHERE id=?",
+                               (int(body["enabled"]), "armed" if body["enabled"] else "disabled", arm_date, bag_id))
                 if "drop_time" in body:
                     db.execute("UPDATE bags SET drop_time=? WHERE id=?", (body["drop_time"], bag_id))
                 if "window_minutes" in body:
