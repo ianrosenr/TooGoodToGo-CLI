@@ -1,23 +1,18 @@
 # Project context
 
 ## Goal
-Raspberry Pi 5 hosted Too Good To Go bag watchlist, prioritized mobile dashboard and scheduled monitoring. Existing Python CLI remains the integration baseline; avoid premature Rust rewrite.
+Raspberry Pi 5 dashboard for scheduled Too Good To Go bag monitoring and prioritized checkout, subject to payment feasibility and safeguards.
 
-## Current state
-- PR #1 merged: local-only Python/SQLite prototype dashboard, desktop drag ordering, up/down controls, daily time, enable switches, five-minute timeout.
-- No TGTG network monitoring, guest checkout, Apple Pay, or purchase capability wired into dashboard.
-- Security: dashboard currently binds localhost; no authentication. Do not expose publicly.
-- Payment: no stored card data/CVV. Checkout must remain disabled until feasibility, consent, and safeguards are validated.
-- Compliance: unofficial integration may conflict with Too Good To Go terms.
+## Merged
+- PR #1: SQLite-backed local-only dashboard, desktop priority drag and arrow controls, time inputs, enable switches. No checkout.
 
-## Engineering workflow
-- One scoped issue per PR; implementation assigned to lower-thinking/cost-efficient agents where available.
-- Higher-thinking review for correctness, security, payments, concurrency and architecture.
-- Run tests/lint before merge; fix review findings; update context.md and next.md in every PR.
-- Merge only after review and passing checks; never assume tests passed.
-- No actual subagent execution is currently available in this chat; GitHub issues are the delegation queue.
+## Current PR
+- Scheduler regression tests and session-state fix; visible browser manual testing instructions.
+- No automated visible-browser tests yet; not executed on Raspberry Pi.
 
-## Risks / known gaps
-- Existing timeout logic may expire a newly enabled bag outside the intended session; fix first.
-- iPhone drag sorting not yet supported.
-- No persistent task runner in ChatGPT session.
+## Constraints
+- Use medium thinking for implementation and review.
+- Do not expose unauthenticated localhost dashboard publicly.
+- Never store CVV or payment secrets; no unattended purchase without validation and explicit guardrails.
+- Every PR updates context.md and next.md; review and run checks before merge.
+- This chat does not have autonomous subagent execution or continuous unattended iteration.

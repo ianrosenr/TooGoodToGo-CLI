@@ -74,12 +74,12 @@ def list_bags(db):
             for row in db.execute("SELECT * FROM bags ORDER BY priority,id")]
 
 
-def expire_sessions(db):
+def expire_sessions(db, now=None):
     """Mark a scheduled window as timed out once its configured end has passed.
 
     A session lasts 5 minutes. Never infer that a purchase occurred.
     """
-    now = datetime.now(TZ)
+    now = now or datetime.now(TZ)
     for b in list_bags(db):
         if not b["enabled"]:
             continue
@@ -89,7 +89,19 @@ def expire_sessions(db):
         except ValueError:
             continue
         session = start.date().isoformat()
-        if now >= start + timedelta(minutes=5) and b["last_session"] != session:
+        if b["status"] == "watching" and b["last_session"] != session:
+            # A previous day's session was interrupted; do not carry it
+            # forward as if today's session had already started.
+            db.execute("UPDATE bags SET status='armed' WHERE id=?", (b["id"],))
+            b["status"] = "armed"
+        if start <= now < start + timedelta(minutes=5) and b["status"] == "armed":
+            db.execute("UPDATE bags SET status='watching' WHERE id=?", (b["id"],))
+            continue
+        # A bag is only eligible to expire if it was armed before today's
+        # scheduled session. Never expire a newly added bag for an old window.
+        if b["last_session"] == session:
+            continue
+        if now >= start + timedelta(minutes=5) and now.date() == start.date() and b["status"] == "watching":
             db.execute("UPDATE bags SET enabled=0,status='timed_out',last_session=? WHERE id=?",
                        (session, b["id"]))
 
@@ -165,7 +177,7 @@ class Handler(BaseHTTPRequestHandler):
             ids = self.read_json()["ids"]
             with LOCK, connect() as db:
                 actual = [b["id"] for b in list_bags(db)]
-                if len(ids) != len(actual) or set(ids) != set(actual):
+                if not isinstance(ids, list) or any(type(i) is not int for i in ids) or len(ids) != len(actual) or set(ids) != set(actual):
                     raise ValueError("Order must contain every bag exactly once")
                 for priority, bag_id in enumerate(ids, 1):
                     db.execute("UPDATE bags SET priority=? WHERE id=?", (priority, bag_id))

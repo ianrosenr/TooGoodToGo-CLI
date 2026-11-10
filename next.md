@@ -1,17 +1,11 @@
 # Next action
 
-## Priority 1
-Fix dashboard session lifecycle and add automated tests (see GitHub issue queue).
+1. Run pytest and review current scheduler fix; repair any failing cases.
+2. Implement reliable persistent scheduler state (including missed sessions/restarts, timezone/DST and daily rearming).
+3. Implement touch-friendly priority dragging with keyboard accessibility.
+4. Add schedule weekdays/windows and SQLite migration.
+5. Add secure Pi service deployment and authentication.
+6. Integrate read-only monitoring with simulation, then evaluate checkout and payment safeguards.
+7. Add notifications, store import, browser-visible integration testing.
 
-### Acceptance
-- Do not time out a bag before its next scheduled drop window.
-- Re-arm semantics are explicit; restarts preserve state.
-- Tests cover before/within/after windows, timezone and DST, persistence.
-- No network checkout calls or payment data.
-- Update context.md and next.md in PR; review and run checks before merge.
-
-## After
-Mobile touch reorder, per-bag weekdays/windows, secure Raspberry Pi deployment, monitoring simulation, guest-checkout feasibility, then guarded payment integration.
-
-## Agent policy
-Use low-thinking implementation workers for bounded coding tasks; stronger independent reviewer for safety, concurrency and payment paths. Do not claim agents were spawned unless a runtime actually executed them.
+All browser-based testing must run in a visible (non-headless) browser. Never merge changes without passing checks and review.
