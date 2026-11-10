@@ -48,7 +48,7 @@ function render(){root.replaceChildren();bags.forEach((b,i)=>{
  if(steps!==0)await move(i,Math.max(0,Math.min(bags.length-1,i+steps)));
  });
  handle.addEventListener('pointercancel',()=>{touchStart=null});
- const details=node('div','details');details.append(node('strong','',b.name),node('small','',b.status+' · Priority '+(i+1)));
+ const details=node('div','details');details.append(node('strong','',b.name),node('small','',b.status+' · '+(b.arm_date||'not armed')+' · Priority '+(i+1)));
  const time=node('input');time.type='time';time.value=b.drop_time;time.title='Daily drop time';time.onchange=()=>update(b.id,{drop_time:time.value});
  const duration=node('input');duration.type='number';duration.min=1;duration.max=120;duration.value=b.window_minutes;duration.title='Monitoring window (minutes)';duration.onchange=()=>update(b.id,{window_minutes:Number(duration.value)});
  const days=node('select');days.title='Schedule';for(const [v,t] of [['all','Every day'],['weekdays','Weekdays'],['weekends','Weekends']]){const o=node('option','',t);o.value=v;days.append(o)}days.value=b.days;days.onchange=()=>update(b.id,{days:days.value});
@@ -77,13 +77,16 @@ def initialize():
     with connect() as db:
         db.execute("""CREATE TABLE IF NOT EXISTS bags (
             id INTEGER PRIMARY KEY, name TEXT NOT NULL, drop_time TEXT NOT NULL,
-            priority INTEGER NOT NULL, enabled INTEGER NOT NULL DEFAULT 1,
-            status TEXT NOT NULL DEFAULT 'armed', last_session TEXT,
+            priority INTEGER NOT NULL, enabled INTEGER NOT NULL DEFAULT 0,
+            status TEXT NOT NULL DEFAULT 'disabled', last_session TEXT,
             window_minutes INTEGER NOT NULL DEFAULT 5,
-            days TEXT NOT NULL DEFAULT 'all')""")
+            days TEXT NOT NULL DEFAULT 'all', arm_date TEXT)""")
         cols = {row[1] for row in db.execute("PRAGMA table_info(bags)")}
         if "window_minutes" not in cols:
             db.execute("ALTER TABLE bags ADD COLUMN window_minutes INTEGER NOT NULL DEFAULT 5")
+        if "arm_date" not in cols:
+            db.execute("ALTER TABLE bags ADD COLUMN arm_date TEXT")
+        db.execute("UPDATE bags SET enabled=0,status='disabled' WHERE enabled=1 AND arm_date IS NULL")
         if "days" not in cols:
             db.execute("ALTER TABLE bags ADD COLUMN days TEXT NOT NULL DEFAULT 'all'")
 
@@ -93,35 +96,32 @@ def list_bags(db):
             for row in db.execute("SELECT * FROM bags ORDER BY priority,id")]
 
 
-def expire_sessions(db, now=None):
-    """Mark a scheduled window as timed out once its configured end has passed.
+def next_arm_date(bag, now):
+    hh, mm = map(int, bag["drop_time"].split(":"))
+    for offset in range(8):
+        day = (now + timedelta(days=offset)).date()
+        start = datetime(day.year, day.month, day.day, hh, mm, tzinfo=TZ)
+        end = start + timedelta(minutes=bag["window_minutes"])
+        allowed = bag["days"] == "all" or (bag["days"] == "weekdays" and day.weekday() < 5) or (bag["days"] == "weekends" and day.weekday() >= 5)
+        if allowed and now < end:
+            return day.isoformat()
+    raise ValueError("No eligible monitoring day")
 
-    Each session uses the configured window. Never infer a purchase occurred.
-    """
+
+def expire_sessions(db, now=None):
+    """Run only explicitly armed occurrences; never automatically rearm."""
     now = now or datetime.now(TZ)
-    for b in list_bags(db):
-        if not b["enabled"]:
+    for bag in list_bags(db):
+        if not bag["enabled"] or not bag["arm_date"]:
             continue
-        try:
-            hh, mm = map(int, b["drop_time"].split(":"))
-            start = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
-        except ValueError:
-            continue
-        weekday = now.weekday()
-        allowed = b["days"] == "all" or (b["days"] == "weekdays" and weekday < 5) or (b["days"] == "weekends" and weekday >= 5)
-        if not allowed:
-            continue
-        end = start + timedelta(minutes=b["window_minutes"])
-        session = start.date().isoformat()
-        if b["status"] == "watching" and b["last_session"] != session:
-            db.execute("UPDATE bags SET status='armed' WHERE id=?", (b["id"],))
-            b["status"] = "armed"
-        if start <= now < end and b["status"] == "armed" and b["last_session"] != session:
-            db.execute("UPDATE bags SET status='watching',last_session=? WHERE id=?",
-                       (session, b["id"]))
-        elif now >= end and b["status"] == "watching" and b["last_session"] == session:
-            db.execute("UPDATE bags SET enabled=0,status='timed_out' WHERE id=?",
-                       (b["id"],))
+        hh, mm = map(int, bag["drop_time"].split(":"))
+        day = datetime.strptime(bag["arm_date"], "%Y-%m-%d").date()
+        start = datetime(day.year, day.month, day.day, hh, mm, tzinfo=TZ)
+        end = start + timedelta(minutes=bag["window_minutes"])
+        if now >= end:
+            db.execute("UPDATE bags SET enabled=0,status='timed_out',last_session=? WHERE id=?", (bag["arm_date"], bag["id"]))
+        elif now >= start and bag["status"] == "armed":
+            db.execute("UPDATE bags SET status='watching',last_session=? WHERE id=?", (bag["arm_date"], bag["id"]))
 
 
 def scheduler_loop(interval_seconds=0.25):
@@ -178,7 +178,7 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("Invalid name")
             with LOCK, connect() as db:
                 priority = db.execute("SELECT COALESCE(MAX(priority),0)+1 FROM bags").fetchone()[0]
-                db.execute("INSERT INTO bags(name,drop_time,priority,window_minutes) VALUES(?,?,?,?)",
+                db.execute("INSERT INTO bags(name,drop_time,priority,window_minutes,enabled,status) VALUES(?,?,?,?,0,'disabled')",
                            (name, time, priority, duration))
             self.respond(201, {"ok": True})
         except (ValueError, KeyError, TypeError, json.JSONDecodeError) as e:
@@ -201,15 +201,24 @@ class Handler(BaseHTTPRequestHandler):
             if "days" in body and body["days"] not in ("all", "weekdays", "weekends"):
                 raise ValueError("Invalid days")
             with LOCK, connect() as db:
+                row = db.execute("SELECT * FROM bags WHERE id=?", (bag_id,)).fetchone()
+                if row is None:
+                    raise ValueError("Bag not found")
                 if "enabled" in body:
-                    db.execute("UPDATE bags SET enabled=?,status=?,last_session=NULL WHERE id=?",
-                               (int(body["enabled"]), "armed" if body["enabled"] else "disabled", bag_id))
+                    arm_date = next_arm_date(dict(row) | body, datetime.now(TZ)) if body["enabled"] else None
+                    db.execute("UPDATE bags SET enabled=?,status=?,last_session=NULL,arm_date=? WHERE id=?",
+                               (int(body["enabled"]), "armed" if body["enabled"] else "disabled", arm_date, bag_id))
                 if "drop_time" in body:
                     db.execute("UPDATE bags SET drop_time=? WHERE id=?", (body["drop_time"], bag_id))
                 if "window_minutes" in body:
                     db.execute("UPDATE bags SET window_minutes=? WHERE id=?", (body["window_minutes"], bag_id))
                 if "days" in body:
                     db.execute("UPDATE bags SET days=? WHERE id=?", (body["days"], bag_id))
+                if row["enabled"] and "enabled" not in body and any(k in body for k in ("drop_time", "window_minutes", "days")):
+                    new_date = next_arm_date(dict(row) | body, datetime.now(TZ))
+                    db.execute("UPDATE bags SET arm_date=?,status='armed',last_session=NULL WHERE id=?",
+                               (new_date, bag_id))
+                expire_sessions(db)
             self.respond(200, {"ok": True})
         except (ValueError, TypeError, json.JSONDecodeError) as e:
             self.respond(400, {"error": str(e)})
