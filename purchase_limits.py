@@ -2,7 +2,7 @@
 
 No network or payment operations. Caller must serialize reservation transactions.
 """
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, DecimalException, InvalidOperation
 
 
 def dollars_to_cents(value):
@@ -17,7 +17,7 @@ def dollars_to_cents(value):
         if cents != cents.to_integral_value():
             raise ValueError("Dollar amount must have at most two decimals")
         result = int(cents)
-    except (InvalidOperation, OverflowError):
+    except (DecimalException, OverflowError):
         raise ValueError("Invalid dollar amount") from None
     if result > 9_000_000_000_000_000_000:
         raise ValueError("Dollar amount exceeds supported range")
