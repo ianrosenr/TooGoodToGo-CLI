@@ -72,7 +72,7 @@ def test_repeated_checks_update_timestamp_even_without_transition():
     db.row_factory = sqlite3.Row
     db.executescript("""
         CREATE TABLE bags (
-            id INTEGER PRIMARY KEY, enabled INTEGER, status TEXT,
+            id INTEGER PRIMARY KEY, priority INTEGER, enabled INTEGER, status TEXT,
             arm_date TEXT, last_checked_at TEXT, last_check_available INTEGER
         );
         CREATE TABLE observations (
@@ -80,8 +80,8 @@ def test_repeated_checks_update_timestamp_even_without_transition():
             observed_at TEXT, available INTEGER,
             UNIQUE(bag_id, arm_date, available)
         );
-        INSERT INTO bags(id,enabled,status,arm_date)
-            VALUES(1,1,'watching','2026-11-09');
+        INSERT INTO bags(id,priority,enabled,status,arm_date)
+            VALUES(1,1,1,'watching','2026-11-09');
     """)
     first = datetime(2026, 11, 9, 12, 1, tzinfo=TZ)
     second = datetime(2026, 11, 9, 12, 2, tzinfo=TZ)
