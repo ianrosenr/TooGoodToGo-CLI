@@ -15,6 +15,8 @@ def simulate_checkout(db, now: datetime):
         SELECT b.id,b.arm_date FROM bags b
         JOIN observations o ON o.bag_id=b.id AND o.arm_date=b.arm_date
         WHERE b.enabled=1 AND b.status='watching' AND o.available=1
+          AND o.id=(SELECT MAX(o2.id) FROM observations o2
+                    WHERE o2.bag_id=b.id AND o2.arm_date=b.arm_date)
         ORDER BY b.priority,b.id
     """).fetchall()
     confirmed = []
