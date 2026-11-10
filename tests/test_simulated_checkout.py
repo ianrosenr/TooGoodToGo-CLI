@@ -21,9 +21,9 @@ def test_priority_skips_unaffordable_and_is_idempotent():
         INSERT INTO bags VALUES(1,1,'2026-11-09',1,'watching',1000);
         INSERT INTO bags VALUES(2,2,'2026-11-09',1,'watching',700);
         INSERT INTO bags VALUES(3,3,'2026-11-09',1,'watching',400);
-        INSERT INTO observations VALUES(1,'2026-11-09',1);
-        INSERT INTO observations VALUES(2,'2026-11-09',1);
-        INSERT INTO observations VALUES(3,'2026-11-09',1);
+        INSERT INTO observations(bag_id,arm_date,available) VALUES(1,'2026-11-09',1);
+        INSERT INTO observations(bag_id,arm_date,available) VALUES(2,'2026-11-09',1);
+        INSERT INTO observations(bag_id,arm_date,available) VALUES(3,'2026-11-09',1);
     """)
     now = datetime(2026, 11, 9, 12, 1, tzinfo=ZoneInfo("America/New_York"))
     assert simulate_checkout(db, now) == [1, 3]

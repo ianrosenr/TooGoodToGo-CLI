@@ -10,6 +10,8 @@ def simulate_checkout(db, now: datetime):
     Caller must hold the dashboard lock and an SQLite write transaction.
     Never contacts payment services. A confirmation is SIMULATED only.
     """
+    if not db.in_transaction:
+        db.execute('BEGIN IMMEDIATE')
     day = now.date().isoformat()
     candidates = db.execute("""
         SELECT b.id,b.arm_date FROM bags b
