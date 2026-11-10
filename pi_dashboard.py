@@ -60,6 +60,7 @@ function render(){root.replaceChildren();bags.forEach((b,i)=>{
  });
  handle.addEventListener('pointercancel',()=>{touchStart=null});
  const details=node('div','details');details.append(node('strong','',b.name),node('small','',b.status+' · '+(b.arm_date||'not armed')+' · $'+(b.price_cents===null?'?':(b.price_cents/100).toFixed(2))+' · Priority '+(i+1)));
+ const check=node('small','',b.last_checked_at?'SIMULATED check · '+new Date(b.last_checked_at).toLocaleString()+' · '+(b.last_check_available?'Available':'Not available'):'No checks yet (simulation only)');details.append(check);
  const time=node('input');time.type='time';time.value=b.drop_time;time.title='Daily drop time';time.onchange=()=>update(b.id,{drop_time:time.value});
  const duration=node('input');duration.type='number';duration.min=1;duration.max=120;duration.value=b.window_minutes;duration.title='Monitoring window (minutes)';duration.onchange=()=>update(b.id,{window_minutes:Number(duration.value)});
  const days=node('select');days.title='Schedule';for(const [v,t] of [['all','Every day'],['weekdays','Weekdays'],['weekends','Weekends']]){const o=node('option','',t);o.value=v;days.append(o)}days.value=b.days;days.onchange=()=>update(b.id,{days:days.value});
@@ -78,7 +79,7 @@ document.querySelector('#add').onsubmit=async e=>{e.preventDefault();const data=
 async function loadLimits(){const limits=await api('/api/limits');document.querySelector('#maxDollars').value=limits.max_cents===null?'':(limits.max_cents/100).toFixed(2);document.querySelector('#maxBags').value=limits.max_bags??''}
 document.querySelector('#saveLimits').onclick=async()=>{try{const dollars=document.querySelector('#maxDollars').value;const bags=document.querySelector('#maxBags').value;await api('/api/limits','PUT',{max_dollars:dollars===''?null:dollars,max_bags:bags===''?null:Number(bags)});document.querySelector('#limitStatus').textContent='Saved'}catch(e){document.querySelector('#limitStatus').textContent=e.message}};
 async function loadSummary(){try{const s=await api('/api/purchase-summary');document.querySelector('#purchaseSummary').textContent='Today reserved/simulated: $'+(s.cents/100).toFixed(2)+' · '+s.bags+' bags · Remaining: '+(s.remaining_cents===null?'Unlimited dollars':'$'+(s.remaining_cents/100).toFixed(2))+' / '+(s.remaining_bags===null?'Unlimited bags':s.remaining_bags+' bags')}catch(e){msg.textContent=e.message}}
-refresh().catch(e=>msg.textContent=e.message);loadLimits().catch(e=>msg.textContent=e.message);loadSummary();
+refresh().catch(e=>msg.textContent=e.message);setInterval(()=>refresh().catch(e=>msg.textContent=e.message),5000);loadLimits().catch(e=>msg.textContent=e.message);loadSummary();
 </script></html>"""
 
 
@@ -115,6 +116,10 @@ def initialize():
             UNIQUE(bag_id,purchase_day))""")
         if "days" not in cols:
             db.execute("ALTER TABLE bags ADD COLUMN days TEXT NOT NULL DEFAULT 'all'")
+        if "last_checked_at" not in cols:
+            db.execute("ALTER TABLE bags ADD COLUMN last_checked_at TEXT")
+        if "last_check_available" not in cols:
+            db.execute("ALTER TABLE bags ADD COLUMN last_check_available INTEGER")
         db.execute("""CREATE TABLE IF NOT EXISTS observations (
             id INTEGER PRIMARY KEY, bag_id INTEGER NOT NULL,
             arm_date TEXT NOT NULL, observed_at TEXT NOT NULL,
@@ -156,13 +161,17 @@ def expire_sessions(db, now=None):
 
 
 def observe_simulated(db, source, now=None):
-    """Persist each availability transition, emitting at most one available alert per session."""
+    """Persist every check timestamp and emit availability-transition events."""
     now = now or datetime.now(TZ)
     events = []
     for bag in list_bags(db):
         if not bag["enabled"] or bag["status"] != "watching" or not bag["arm_date"]:
             continue
         result = source.check(bag["id"])
+        db.execute(
+            "UPDATE bags SET last_checked_at=?,last_check_available=? WHERE id=?",
+            (now.isoformat(), int(result.available), bag["id"]),
+        )
         previous = db.execute(
             "SELECT id,available FROM observations WHERE bag_id=? AND arm_date=? ORDER BY id DESC LIMIT 1",
             (bag["id"], bag["arm_date"]),
