@@ -1,10 +1,9 @@
 # Next action
 
-1. Verify and test schedule configuration/migration and session transitions.
-2. Add a real background scheduler with persistent session state, restart behavior and DST handling.
-3. Add bag URLs/IDs and read-only monitoring adapter with simulation mode.
-4. Add local authentication, Pi systemd setup and secure mobile access.
-5. Evaluate guest checkout / Apple Pay feasibility, purchase idempotency and spend guardrails.
-6. Notifications, visible browser tests and documentation.
+1. Test background scheduler across restarts and timezones; add persistent session occurrence ID and missed-window behavior.
+2. Add bag URLs/IDs and read-only monitoring adapter with safe mock mode.
+3. Add authentication, Pi systemd unit, backup and secure phone access.
+4. Investigate guest checkout and Apple Pay feasibility without bypassing authorization.
+5. Add guarded purchase state machine, notifications and visible-browser end-to-end tests.
 
-Do not use headless browser testing; do not merge unverified payment code.
+Do not use headless browser testing. Validate before enabling checkout.

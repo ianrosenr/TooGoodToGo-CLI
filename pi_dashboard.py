@@ -8,10 +8,11 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import time
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from threading import RLock
+from threading import RLock, Thread
 from zoneinfo import ZoneInfo
 
 DB = Path(os.environ.get("TGTG_DASHBOARD_DB", "bag-dashboard.sqlite3"))
@@ -113,20 +114,29 @@ def expire_sessions(db, now=None):
         end = start + timedelta(minutes=b["window_minutes"])
         session = start.date().isoformat()
         if b["status"] == "watching" and b["last_session"] != session:
-            # A previous day's session was interrupted; do not carry it
-            # forward as if today's session had already started.
             db.execute("UPDATE bags SET status='armed' WHERE id=?", (b["id"],))
             b["status"] = "armed"
-        if start <= now < end and b["status"] == "armed":
-            db.execute("UPDATE bags SET status='watching' WHERE id=?", (b["id"],))
-            continue
-        # A bag is only eligible to expire if it was armed before today's
-        # scheduled session. Never expire a newly added bag for an old window.
-        if b["last_session"] == session:
-            continue
-        if now >= end and now.date() == start.date() and b["status"] == "watching":
-            db.execute("UPDATE bags SET enabled=0,status='timed_out',last_session=? WHERE id=?",
+        if start <= now < end and b["status"] == "armed" and b["last_session"] != session:
+            db.execute("UPDATE bags SET status='watching',last_session=? WHERE id=?",
                        (session, b["id"]))
+        elif now >= end and b["status"] == "watching" and b["last_session"] == session:
+            db.execute("UPDATE bags SET enabled=0,status='timed_out' WHERE id=?",
+                       (b["id"],))
+
+
+def scheduler_loop(interval_seconds=5):
+    """Tick session state without relying on browser refreshes.
+
+    Database transactions are committed per tick; failures are logged and
+    retried on the next tick rather than terminating the web server.
+    """
+    while True:
+        try:
+            with LOCK, connect() as db:
+                expire_sessions(db)
+        except (OSError, sqlite3.Error, ValueError) as exc:
+            print(f"Scheduler tick failed: {exc}", flush=True)
+        time.sleep(interval_seconds)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -223,4 +233,5 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     initialize()
     print("Dashboard: http://127.0.0.1:8765 (local only; no checkout)")
+    Thread(target=scheduler_loop, daemon=True, name="bag-scheduler").start()
     ThreadingHTTPServer(("127.0.0.1", 8765), Handler).serve_forever()
