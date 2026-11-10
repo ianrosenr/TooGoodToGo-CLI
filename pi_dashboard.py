@@ -8,10 +8,11 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import time
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from threading import RLock
+from threading import RLock, Thread
 from zoneinfo import ZoneInfo
 
 DB = Path(os.environ.get("TGTG_DASHBOARD_DB", "bag-dashboard.sqlite3"))
@@ -129,6 +130,21 @@ def expire_sessions(db, now=None):
                        (session, b["id"]))
 
 
+def scheduler_loop(interval_seconds=5):
+    """Tick session state without relying on browser refreshes.
+
+    Database transactions are committed per tick; failures are logged and
+    retried on the next tick rather than terminating the web server.
+    """
+    while True:
+        try:
+            with LOCK, connect() as db:
+                expire_sessions(db)
+        except (OSError, sqlite3.Error, ValueError) as exc:
+            print(f"Scheduler tick failed: {exc}", flush=True)
+        time.sleep(interval_seconds)
+
+
 class Handler(BaseHTTPRequestHandler):
     def respond(self, code, data, content_type="application/json"):
         body = data.encode() if isinstance(data, str) else json.dumps(data).encode()
@@ -223,4 +239,5 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     initialize()
     print("Dashboard: http://127.0.0.1:8765 (local only; no checkout)")
+    Thread(target=scheduler_loop, daemon=True, name="bag-scheduler").start()
     ThreadingHTTPServer(("127.0.0.1", 8765), Handler).serve_forever()
