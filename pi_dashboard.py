@@ -172,9 +172,16 @@ def observe_simulated(db, source, now=None):
                 (bag["id"], bag["arm_date"], now.isoformat(), int(result.available)),
             )
         else:
+            # The legacy schema uniquely indexes (bag, day, available).
+            # Remove prior state before inserting the latest transition.
             db.execute(
-                "UPDATE observations SET observed_at=?,available=? WHERE id=?",
-                (now.isoformat(), int(result.available), previous["id"]),
+                "DELETE FROM observations WHERE bag_id=? AND arm_date=?",
+                (bag["id"], bag["arm_date"]),
+            )
+            db.execute(
+                "INSERT INTO observations(bag_id,arm_date,observed_at,available) "
+                "VALUES(?,?,?,?)",
+                (bag["id"], bag["arm_date"], now.isoformat(), int(result.available)),
             )
         if result.available:
             events.append({"bag_id": bag["id"], "arm_date": bag["arm_date"],
