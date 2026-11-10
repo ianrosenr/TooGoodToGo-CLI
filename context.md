@@ -1,16 +1,18 @@
 # Project context
 
 ## Goal
-Raspberry Pi 5 prioritized bag dashboard, precise schedules and guarded checkout.
+Raspberry Pi TGTG bag dashboard with manually armed per-day monitoring windows and guarded purchase.
 
 ## Merged
-- PR #1 dashboard; #2 scheduler tests/state; #3 touch priority; #4 schedules/windows; #5 independent background scheduler.
+PR #1 dashboard; #2 scheduler tests; #3 touch reorder; #4 configurable schedules; #5 background scheduler; #6 250ms local scheduler tick.
 
 ## Current PR
-- Local scheduler tick defaults to 250ms, configurable with TGTG_SCHEDULER_TICK_SECONDS (0.05–60 seconds).
-- This is **local scheduling only**, not Too Good To Go inventory polling.
-- Future inventory polling needs rate-limit/backoff and terms review; default proposal 1s only while active, adjustable based on observed limits.
-- Immediate purchase event handling still unimplemented.
+- Explicit arm_date per bag; new and migrated bags default off.
+- Arming during today's remaining window monitors today; arming after window schedules next eligible day.
+- Window expiry disables; no automatic rearming.
+- Purchase-confirmed permanent disable still requires checkout integration.
+- No TGTG event API verified. Polling policy must honor limits.
+- Existing regression tests require updates to reflect new manual-arming semantics; not yet validated.
 
 ## Constraints
-Medium thinking, non-headless browser tests, no unauthenticated remote access, no stored payment secrets. Every PR updates context.md and next.md.
+Visible non-headless browser testing, no unauthorized remote access, no stored payment credentials.
