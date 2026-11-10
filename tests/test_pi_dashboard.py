@@ -14,7 +14,8 @@ def db():
     conn.execute("""CREATE TABLE bags (
         id INTEGER PRIMARY KEY, name TEXT NOT NULL, drop_time TEXT NOT NULL,
         priority INTEGER NOT NULL, enabled INTEGER NOT NULL DEFAULT 1,
-        status TEXT NOT NULL DEFAULT 'armed', last_session TEXT)""")
+        status TEXT NOT NULL DEFAULT 'armed', last_session TEXT,
+        window_minutes INTEGER NOT NULL DEFAULT 5, days TEXT NOT NULL DEFAULT 'all')""")
     conn.execute("INSERT INTO bags(name,drop_time,priority) VALUES ('Test','12:00',1)")
     return conn
 
@@ -43,4 +44,21 @@ def test_watching_expires_after_window():
 def test_no_expiry_before_window():
     conn = db()
     expire_sessions(conn, datetime(2026, 11, 9, 11, 59, tzinfo=TZ))
+    assert list_bags(conn)[0]["status"] == "armed"
+
+
+def test_custom_window_does_not_expire_early():
+    conn = db()
+    conn.execute("UPDATE bags SET window_minutes=30")
+    expire_sessions(conn, datetime(2026, 11, 9, 12, 1, tzinfo=TZ))
+    expire_sessions(conn, datetime(2026, 11, 9, 12, 10, tzinfo=TZ))
+    assert list_bags(conn)[0]["enabled"]
+    expire_sessions(conn, datetime(2026, 11, 9, 12, 31, tzinfo=TZ))
+    assert list_bags(conn)[0]["status"] == "timed_out"
+
+
+def test_weekend_schedule_skips_monday():
+    conn = db()
+    conn.execute("UPDATE bags SET days='weekends'")
+    expire_sessions(conn, datetime(2026, 11, 9, 12, 1, tzinfo=TZ))
     assert list_bags(conn)[0]["status"] == "armed"
