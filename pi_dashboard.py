@@ -77,13 +77,16 @@ def initialize():
     with connect() as db:
         db.execute("""CREATE TABLE IF NOT EXISTS bags (
             id INTEGER PRIMARY KEY, name TEXT NOT NULL, drop_time TEXT NOT NULL,
-            priority INTEGER NOT NULL, enabled INTEGER NOT NULL DEFAULT 1,
+            priority INTEGER NOT NULL, enabled INTEGER NOT NULL DEFAULT 0,
             status TEXT NOT NULL DEFAULT 'armed', last_session TEXT,
             window_minutes INTEGER NOT NULL DEFAULT 5,
-            days TEXT NOT NULL DEFAULT 'all')""")
+            days TEXT NOT NULL DEFAULT 'all', arm_date TEXT)""")
         cols = {row[1] for row in db.execute("PRAGMA table_info(bags)")}
         if "window_minutes" not in cols:
             db.execute("ALTER TABLE bags ADD COLUMN window_minutes INTEGER NOT NULL DEFAULT 5")
+        if "arm_date" not in cols:
+            db.execute("ALTER TABLE bags ADD COLUMN arm_date TEXT")
+        db.execute("UPDATE bags SET enabled=0,status='disabled' WHERE enabled=1 AND arm_date IS NULL")
         if "days" not in cols:
             db.execute("ALTER TABLE bags ADD COLUMN days TEXT NOT NULL DEFAULT 'all'")
 
