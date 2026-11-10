@@ -21,7 +21,7 @@ HTML = """<!doctype html><html lang="en"><meta name="viewport" content="width=de
 <title>Bag Watchlist</title><style>
 body{font:16px system-ui;max-width:680px;margin:30px auto;padding:0 14px;background:#f7f8fa;color:#18202a}
 h1{font-size:26px}.item{display:flex;align-items:center;gap:12px;background:white;border:1px solid #ddd;border-radius:12px;padding:14px;margin:10px 0}
-.handle{cursor:grab;touch-action:none;font-size:24px;color:#777}.details{flex:1;min-width:0}
+.handle{cursor:grab;touch-action:none;font-size:24px;color:#777;user-select:none;min-width:32px;text-align:center}.details{flex:1;min-width:0}
 small{display:block;color:#666;margin-top:5px}input,button{font:inherit}input[type=time]{max-width:110px}
 button{border:1px solid #ccc;border-radius:8px;background:white;padding:8px;cursor:pointer}
 form{display:flex;gap:8px;flex-wrap:wrap}form input{padding:8px;min-width:0}
@@ -38,6 +38,15 @@ async function update(id,data){try{await api('/api/bags/'+id,'PATCH',data);await
 function render(){root.replaceChildren();bags.forEach((b,i)=>{
  const row=node('div','item');row.draggable=true;row.dataset.id=b.id;
  const handle=node('span','handle','⠿');handle.setAttribute('aria-label','Drag to reorder');
+ let touchStart=null;
+ handle.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')return;touchStart={id:b.id,y:e.clientY};handle.setPointerCapture(e.pointerId);});
+ handle.addEventListener('pointerup',async e=>{if(!touchStart)return;const start=touchStart;touchStart=null;
+ const rows=[...root.querySelectorAll('.item')];const dy=e.clientY-start.y;
+ const rowHeight=row.getBoundingClientRect().height+10;
+ const steps=Math.round(dy/rowHeight);
+ if(steps!==0)await move(i,Math.max(0,Math.min(bags.length-1,i+steps)));
+ });
+ handle.addEventListener('pointercancel',()=>{touchStart=null});
  const details=node('div','details');details.append(node('strong','',b.name),node('small','',b.status+' · Priority '+(i+1)));
  const time=node('input');time.type='time';time.value=b.drop_time;time.title='Daily drop time';time.onchange=()=>update(b.id,{drop_time:time.value});
  const toggle=node('input');toggle.type='checkbox';toggle.checked=b.enabled;toggle.setAttribute('aria-label','Enable '+b.name);toggle.onchange=()=>update(b.id,{enabled:toggle.checked});
