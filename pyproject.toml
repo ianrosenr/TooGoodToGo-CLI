@@ -39,6 +39,7 @@ dependencies = [
     "socksio>=1.0.0",
     "typer>=0.20.0",
     "typing-extensions>=4.15.0",
+    "tzdata>=2025.2",
 ]
 
 [project.urls]
@@ -95,3 +96,15 @@ docs = [
     "mkdocs-material[imaging]>=9.6",
     "mkdocs-llmstxt>=0.5",
 ]
+
+# Dashboard prototype has legacy long SQL/HTML lines; enforce other Ruff rules.
+[tool.ruff.lint.per-file-ignores]
+"pi_dashboard.py" = ["E501"]
+"monitoring.py" = ["E501"]
+"purchase_limits.py" = ["E501"]
+"simulated_checkout.py" = ["E501"]
+"tests/test_pi_dashboard.py" = ["E501"]
+"tests/test_monitoring.py" = ["E501"]
+"tests/test_simulated_events.py" = ["E501"]
+"tests/test_purchase_limits.py" = ["E501"]
+"tests/test_simulated_checkout.py" = ["E501"]
