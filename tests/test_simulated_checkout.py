@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from simulated_checkout import simulate_checkout
+from simulated_checkout import recover_simulated_reservations, simulate_checkout
 
 
 def test_priority_skips_unaffordable_and_is_idempotent():
@@ -30,3 +30,32 @@ def test_priority_skips_unaffordable_and_is_idempotent():
     assert simulate_checkout(db, now) == []
     assert db.execute("SELECT COUNT(*) FROM purchase_reservations").fetchone()[0] == 2
     assert db.execute("SELECT enabled FROM bags WHERE id=2").fetchone()[0] == 1
+
+
+def test_restart_recovers_pending_without_double_spending():
+    db = sqlite3.connect(":memory:")
+    db.row_factory = sqlite3.Row
+    db.executescript("""
+        CREATE TABLE bags (
+            id INTEGER PRIMARY KEY, enabled INTEGER, status TEXT
+        );
+        CREATE TABLE purchase_reservations (
+            id INTEGER PRIMARY KEY, bag_id INTEGER, purchase_day TEXT,
+            price_cents INTEGER, state TEXT
+        );
+        INSERT INTO bags VALUES(1,1,'watching');
+        INSERT INTO bags VALUES(2,1,'watching');
+        INSERT INTO purchase_reservations
+            VALUES(1,1,'2026-11-09',1000,'pending');
+        INSERT INTO purchase_reservations
+            VALUES(2,2,'2026-11-09',400,'confirmed');
+    """)
+    assert recover_simulated_reservations(db) == 1
+    assert recover_simulated_reservations(db) == 0
+    assert db.execute(
+        "SELECT enabled,status FROM bags WHERE id=1"
+    ).fetchone()[:] == (0, "simulated_purchased")
+    assert db.execute(
+        "SELECT SUM(price_cents) FROM purchase_reservations "
+        "WHERE state IN ('pending','confirmed')"
+    ).fetchone()[0] == 1400
