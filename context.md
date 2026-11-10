@@ -1,12 +1,9 @@
 # Project context
 
-Raspberry Pi Too Good To Go prototype. Offline-only simulator, no live inventory, reservation, or payment.
+Raspberry Pi Too Good To Go prototype. Offline-only simulator; no live inventory, reservation, or payment.
 
-Merged PRs #1–#12: manual arming, scheduler, offline observations, simulated checkout, spend/quantity caps, CI workflow and write transaction hardening.
+PRs #14 and #15 merged after GitHub CI passed. Dashboard offers manual daily arming, scheduling, priority ordering, dollar/bag caps, simulated observations, purchase summaries and simulated history.
 
-Current PR:
-- Repairs severe pi_dashboard.py duplication (eight concatenated implementations).
-- Adds remaining daily dollars/bags to dashboard and simulated purchase history API.
-- Requires CI and runtime tests before merge. GitHub workflow success has not been confirmed.
+Current branch adds startup recovery of pending *simulated* reservations and a systemd unit with persistent SQLite state and loopback-only access. Requires CI and real Pi validation.
 
-Safety: manual rearming each day, no unattended real checkout. Need API authorization and rate-limit review.
+Safety: no unattended real checkout. Future live API work requires authorization, rate-limit review and explicit testing.

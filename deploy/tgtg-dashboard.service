@@ -1,0 +1,23 @@
+[Unit]
+Description=Local Too Good To Go bag simulation dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=tgtg
+Group=tgtg
+WorkingDirectory=/opt/tgtg-dashboard
+EnvironmentFile=-/etc/tgtg-dashboard.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/tgtg-dashboard/.venv/bin/python /opt/tgtg-dashboard/pi_dashboard.py
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/tgtg-dashboard
+StateDirectory=tgtg-dashboard
+
+[Install]
+WantedBy=multi-user.target
