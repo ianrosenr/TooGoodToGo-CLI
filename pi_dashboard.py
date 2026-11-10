@@ -95,7 +95,7 @@ def list_bags(db):
 def expire_sessions(db, now=None):
     """Mark a scheduled window as timed out once its configured end has passed.
 
-    A session lasts 5 minutes. Never infer that a purchase occurred.
+    Each session uses the configured window. Never infer a purchase occurred.
     """
     now = now or datetime.now(TZ)
     for b in list_bags(db):
@@ -124,7 +124,7 @@ def expire_sessions(db, now=None):
         # scheduled session. Never expire a newly added bag for an old window.
         if b["last_session"] == session:
             continue
-        if now >= start + timedelta(minutes=5) and now.date() == start.date() and b["status"] == "watching":
+        if now >= end and now.date() == start.date() and b["status"] == "watching":
             db.execute("UPDATE bags SET enabled=0,status='timed_out',last_session=? WHERE id=?",
                        (session, b["id"]))
 
