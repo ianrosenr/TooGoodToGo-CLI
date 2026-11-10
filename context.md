@@ -1,18 +1,15 @@
 # Project context
 
 ## Goal
-Raspberry Pi TGTG bag dashboard with manually armed per-day monitoring windows and guarded purchase.
+Raspberry Pi TGTG bag dashboard with manual daily arming, narrow monitoring windows, priority and guarded checkout.
 
 ## Merged
-PR #1 dashboard; #2 scheduler tests; #3 touch reorder; #4 configurable schedules; #5 background scheduler; #6 250ms local scheduler tick.
+PR #1 dashboard; #2 scheduler tests; #3 touch reorder; #4 configurable windows; #5 background scheduler; #6 250ms local tick; #7 manual daily arming.
 
 ## Current PR
-- Explicit arm_date per bag; new and migrated bags default off.
-- Arming during today's remaining window monitors today; arming after window schedules next eligible day.
-- Window expiry disables; no automatic rearming.
-- Purchase-confirmed permanent disable still requires checkout integration.
-- No TGTG event API verified. Polling policy must honor limits.
-- Existing regression tests require updates to reflect new manual-arming semantics; not yet validated.
+- Read-only availability adapter protocol, deterministic offline simulation and global poll gate with backoff.
+- No remote TGTG requests, no checkout, no actual monitoring integration yet.
+- Unit tests authored but not executed; visible browser testing pending.
 
 ## Constraints
-Visible non-headless browser testing, no unauthorized remote access, no stored payment credentials.
+No automatic rearming. Missed windows disable. Confirmed purchase must disable until manually rearmed. Respect provider rate limits; no remote access without authentication.

@@ -1,7 +1,7 @@
 # Next action
 
-1. Update and run unit tests for manual arming, missed windows, weekday rollover, and restart.
-2. Review concurrency, timezones/DST, and schedule edits while armed.
-3. Build read-only inventory adapter with rate limiting and mock events.
-4. Implement guarded purchase state and permanent disable on confirmed success.
-5. Secure Raspberry Pi deployment and visible browser tests.
+1. Run pytest and resolve any failures, including manual arming migrations.
+2. Wire offline simulated observations into the scheduler with idempotent event recording.
+3. Research TGTG-supported APIs, request limits and checkout terms before adding remote adapter.
+4. Add secure Pi deployment, notifications and non-headless browser tests.
+5. Add guarded checkout only after verified authorization and idempotency.
