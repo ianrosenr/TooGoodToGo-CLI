@@ -89,6 +89,11 @@ def expire_sessions(db, now=None):
         except ValueError:
             continue
         session = start.date().isoformat()
+        if b["status"] == "watching" and b["last_session"] != session:
+            # A previous day's session was interrupted; do not carry it
+            # forward as if today's session had already started.
+            db.execute("UPDATE bags SET status='armed' WHERE id=?", (b["id"],))
+            b["status"] = "armed"
         if start <= now < start + timedelta(minutes=5) and b["status"] == "armed":
             db.execute("UPDATE bags SET status='watching' WHERE id=?", (b["id"],))
             continue
