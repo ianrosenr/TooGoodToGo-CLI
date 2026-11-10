@@ -153,22 +153,32 @@ def expire_sessions(db, now=None):
 
 
 def observe_simulated(db, source, now=None):
-    """Record availability once per bag/session/outcome, without buying.
-
-    The caller holds LOCK and a transaction. A repeated available event
-    cannot create duplicate notifications for the same armed occurrence.
-    """
+    """Persist each availability transition, emitting at most one available alert per session."""
     now = now or datetime.now(TZ)
     events = []
     for bag in list_bags(db):
         if not bag["enabled"] or bag["status"] != "watching" or not bag["arm_date"]:
             continue
         result = source.check(bag["id"])
-        cursor = db.execute(
-            "INSERT OR IGNORE INTO observations(bag_id,arm_date,observed_at,available) VALUES(?,?,?,?)",
-            (bag["id"], bag["arm_date"], now.isoformat(), int(result.available)),
-        )
-        if cursor.rowcount and result.available:
+        previous = db.execute(
+            "SELECT available FROM observations WHERE bag_id=? AND arm_date=? ORDER BY id DESC LIMIT 1",
+            (bag["id"], bag["arm_date"]),
+        ).fetchone()
+        if previous is not None and bool(previous["available"]) == bool(result.available):
+            continue
+        if previous is None:
+            db.execute(
+                "INSERT INTO observations(bag_id,arm_date,observed_at,available) VALUES(?,?,?,?)",
+                (bag["id"], bag["arm_date"], now.isoformat(), int(result.available)),
+            )
+        else:
+            db.execute(
+                "UPDATE observations SET observed_at=?,available=? "
+                "WHERE bag_id=? AND arm_date=? AND available=?",
+                (now.isoformat(), int(result.available), bag["id"], bag["arm_date"],
+                 int(previous["available"])),
+            )
+        if result.available:
             events.append({"bag_id": bag["id"], "arm_date": bag["arm_date"],
                            "event": "available_simulated"})
     return events
