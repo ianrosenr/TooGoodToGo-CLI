@@ -1,17 +1,12 @@
 # Project context
 
-## Goal
-Raspberry Pi TGTG dashboard with manual daily arming, priority, spend and quantity caps, safe monitoring, guarded checkout.
+Raspberry Pi Too Good To Go prototype. Offline-only simulator, no live inventory, reservation, or payment.
 
-## Merged
-PRs #1-#10: dashboard, local scheduler, touch reorder, configurable windows, manual arming, offline monitoring simulation, configurable purchase limits.
+Merged PRs #1–#12: manual arming, scheduler, offline observations, simulated checkout, spend/quantity caps, CI workflow and write transaction hardening.
 
-## Current PR
-- Opt-in offline checkout simulation: set TGTG_SIMULATED_AVAILABLE_IDS=1,2 and TGTG_SIMULATE_CHECKOUT=1.
-- Priority-first selection skips unaffordable bags, reserves daily budget, marks simulated purchases disabled, prevents duplicate checkout.
-- Dashboard shows today's reserved/simulated totals and GET /api/purchase-summary.
-- No payment or actual purchase. Tests authored but not executed.
-- Reservation state must be committed atomically before any future real checkout.
+Current PR:
+- Repairs severe pi_dashboard.py duplication (eight concatenated implementations).
+- Adds remaining daily dollars/bags to dashboard and simulated purchase history API.
+- Requires CI and runtime tests before merge. GitHub workflow success has not been confirmed.
 
-## Constraints
-Manual daily arming only; missed window disables; confirmed purchases disable until manually rearmed. Avoid real TGTG requests before verifying service constraints. Browser testing must be non-headless.
+Safety: manual rearming each day, no unattended real checkout. Need API authorization and rate-limit review.
