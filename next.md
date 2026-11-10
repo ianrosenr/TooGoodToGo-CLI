@@ -1,9 +1,10 @@
 # Next action
 
-1. Verify mobile touch reordering in visible Safari/Chrome, plus desktop drag, keyboard and arrow fallback.
-2. Add per-bag weekdays, window duration, persistent scheduling and timezone handling.
-3. Add local authentication and Raspberry Pi systemd deployment.
-4. Build read-only monitoring adapter and simulation mode.
-5. Validate checkout/Apple Pay feasibility, purchase safeguards, and notifications.
+1. Verify and test schedule configuration/migration and session transitions.
+2. Add a real background scheduler with persistent session state, restart behavior and DST handling.
+3. Add bag URLs/IDs and read-only monitoring adapter with simulation mode.
+4. Add local authentication, Pi systemd setup and secure mobile access.
+5. Evaluate guest checkout / Apple Pay feasibility, purchase idempotency and spend guardrails.
+6. Notifications, visible browser tests and documentation.
 
-Do not use headless browser testing. Run pytest/lint and review before merging changes.
+Do not use headless browser testing; do not merge unverified payment code.
