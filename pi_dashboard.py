@@ -17,7 +17,10 @@ from zoneinfo import ZoneInfo
 
 from monitoring import SimulatedAvailability
 from purchase_limits import dollars_to_cents
-from simulated_checkout import recover_simulated_reservations, simulate_checkout
+from simulated_checkout import (
+    recover_simulated_reservations,
+    simulate_checkout,
+)
 
 DB = Path(os.environ.get("TGTG_DASHBOARD_DB", "bag-dashboard.sqlite3"))
 TZ = ZoneInfo(os.environ.get("TGTG_TIMEZONE", "America/New_York"))
