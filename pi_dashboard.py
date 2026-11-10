@@ -96,35 +96,32 @@ def list_bags(db):
             for row in db.execute("SELECT * FROM bags ORDER BY priority,id")]
 
 
-def expire_sessions(db, now=None):
-    """Mark a scheduled window as timed out once its configured end has passed.
+def next_arm_date(bag, now):
+    hh, mm = map(int, bag["drop_time"].split(":"))
+    for offset in range(8):
+        day = (now + timedelta(days=offset)).date()
+        start = datetime(day.year, day.month, day.day, hh, mm, tzinfo=TZ)
+        end = start + timedelta(minutes=bag["window_minutes"])
+        allowed = bag["days"] == "all" or (bag["days"] == "weekdays" and day.weekday() < 5) or (bag["days"] == "weekends" and day.weekday() >= 5)
+        if allowed and now < end:
+            return day.isoformat()
+    raise ValueError("No eligible monitoring day")
 
-    Each session uses the configured window. Never infer a purchase occurred.
-    """
+
+def expire_sessions(db, now=None):
+    """Run only explicitly armed occurrences; never automatically rearm."""
     now = now or datetime.now(TZ)
-    for b in list_bags(db):
-        if not b["enabled"]:
+    for bag in list_bags(db):
+        if not bag["enabled"] or not bag["arm_date"]:
             continue
-        try:
-            hh, mm = map(int, b["drop_time"].split(":"))
-            start = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
-        except ValueError:
-            continue
-        weekday = now.weekday()
-        allowed = b["days"] == "all" or (b["days"] == "weekdays" and weekday < 5) or (b["days"] == "weekends" and weekday >= 5)
-        if not allowed:
-            continue
-        end = start + timedelta(minutes=b["window_minutes"])
-        session = start.date().isoformat()
-        if b["status"] == "watching" and b["last_session"] != session:
-            db.execute("UPDATE bags SET status='armed' WHERE id=?", (b["id"],))
-            b["status"] = "armed"
-        if start <= now < end and b["status"] == "armed" and b["last_session"] != session:
-            db.execute("UPDATE bags SET status='watching',last_session=? WHERE id=?",
-                       (session, b["id"]))
-        elif now >= end and b["status"] == "watching" and b["last_session"] == session:
-            db.execute("UPDATE bags SET enabled=0,status='timed_out' WHERE id=?",
-                       (b["id"],))
+        hh, mm = map(int, bag["drop_time"].split(":"))
+        day = datetime.strptime(bag["arm_date"], "%Y-%m-%d").date()
+        start = datetime(day.year, day.month, day.day, hh, mm, tzinfo=TZ)
+        end = start + timedelta(minutes=bag["window_minutes"])
+        if now >= end:
+            db.execute("UPDATE bags SET enabled=0,status='timed_out',last_session=? WHERE id=?", (bag["arm_date"], bag["id"]))
+        elif now >= start and bag["status"] == "armed":
+            db.execute("UPDATE bags SET status='watching',last_session=? WHERE id=?", (bag["arm_date"], bag["id"]))
 
 
 def scheduler_loop(interval_seconds=0.25):
