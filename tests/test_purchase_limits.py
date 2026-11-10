@@ -43,3 +43,14 @@ def test_reservations_count_pending_and_confirmed():
     assert not reserve_bag(db, 2, "2026-11-09")
     assert reserve_bag(db, 3, "2026-11-09")
     assert not reserve_bag(db, 3, "2026-11-09")
+
+
+@pytest.mark.parametrize("amount", ["1e100", "1e999999999", "999999999999999999999999"])
+def test_reject_oversized_money_without_crashing(amount):
+    with pytest.raises(ValueError):
+        dollars_to_cents(amount)
+
+
+def test_money_accepts_exact_cents():
+    assert dollars_to_cents("15.00") == 1500
+    assert dollars_to_cents("0.01") == 1
