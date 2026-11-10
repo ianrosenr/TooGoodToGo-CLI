@@ -1,11 +1,9 @@
 # Next action
 
-1. Run pytest and review current scheduler fix; repair any failing cases.
-2. Implement reliable persistent scheduler state (including missed sessions/restarts, timezone/DST and daily rearming).
-3. Implement touch-friendly priority dragging with keyboard accessibility.
-4. Add schedule weekdays/windows and SQLite migration.
-5. Add secure Pi service deployment and authentication.
-6. Integrate read-only monitoring with simulation, then evaluate checkout and payment safeguards.
-7. Add notifications, store import, browser-visible integration testing.
+1. Verify mobile touch reordering in visible Safari/Chrome, plus desktop drag, keyboard and arrow fallback.
+2. Add per-bag weekdays, window duration, persistent scheduling and timezone handling.
+3. Add local authentication and Raspberry Pi systemd deployment.
+4. Build read-only monitoring adapter and simulation mode.
+5. Validate checkout/Apple Pay feasibility, purchase safeguards, and notifications.
 
-All browser-based testing must run in a visible (non-headless) browser. Never merge changes without passing checks and review.
+Do not use headless browser testing. Run pytest/lint and review before merging changes.
