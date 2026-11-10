@@ -1,7 +1,7 @@
 # Next action
 
-1. Execute unit tests, resolve failures and verify dashboard in visible browser.
-2. Integrate selection/reservations with a deterministic checkout simulator; ensure atomic SQLite BEGIN IMMEDIATE and idempotent purchase state.
-3. Add daily spend/quantity progress and remaining budget to dashboard.
-4. Research supported TGTG inventory APIs and rate limits before any real requests.
-5. Build guarded checkout only after confirming supported payment/authorization mechanisms.
+1. Run pytest and validate browser UI with visible non-headless browser; fix regressions.
+2. Implement SQLite BEGIN IMMEDIATE transaction boundary for future concurrent checkout workers.
+3. Improve event history: record every availability transition and prevent stale availability.
+4. Add mock checkout failure/retry and pending reservation reconciliation.
+5. Research supported TGTG inventory/payment flows and rate limits; secure Pi deployment.
