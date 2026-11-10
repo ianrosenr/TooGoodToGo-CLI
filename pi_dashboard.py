@@ -114,20 +114,14 @@ def expire_sessions(db, now=None):
         end = start + timedelta(minutes=b["window_minutes"])
         session = start.date().isoformat()
         if b["status"] == "watching" and b["last_session"] != session:
-            # A previous day's session was interrupted; do not carry it
-            # forward as if today's session had already started.
             db.execute("UPDATE bags SET status='armed' WHERE id=?", (b["id"],))
             b["status"] = "armed"
-        if start <= now < end and b["status"] == "armed":
-            db.execute("UPDATE bags SET status='watching' WHERE id=?", (b["id"],))
-            continue
-        # A bag is only eligible to expire if it was armed before today's
-        # scheduled session. Never expire a newly added bag for an old window.
-        if b["last_session"] == session:
-            continue
-        if now >= end and now.date() == start.date() and b["status"] == "watching":
-            db.execute("UPDATE bags SET enabled=0,status='timed_out',last_session=? WHERE id=?",
+        if start <= now < end and b["status"] == "armed" and b["last_session"] != session:
+            db.execute("UPDATE bags SET status='watching',last_session=? WHERE id=?",
                        (session, b["id"]))
+        elif now >= end and b["status"] == "watching" and b["last_session"] == session:
+            db.execute("UPDATE bags SET enabled=0,status='timed_out' WHERE id=?",
+                       (b["id"],))
 
 
 def scheduler_loop(interval_seconds=5):
