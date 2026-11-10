@@ -1,7 +1,7 @@
 # Next action
 
-1. Execute tests and inspect the live dashboard with a visible, non-headless browser.
-2. Add secure read-only real inventory adapter only after investigating supported APIs and provider rate limits.
-3. Separate remote polling from 250ms local scheduler; use a shared rate gate and Retry-After.
-4. Add notifications and purchase-confirmed permanent disable with idempotency safeguards.
-5. Secure Pi deployment, mobile access and checkout feasibility.
+1. Execute unit tests, resolve failures and verify dashboard in visible browser.
+2. Integrate selection/reservations with a deterministic checkout simulator; ensure atomic SQLite BEGIN IMMEDIATE and idempotent purchase state.
+3. Add daily spend/quantity progress and remaining budget to dashboard.
+4. Research supported TGTG inventory APIs and rate limits before any real requests.
+5. Build guarded checkout only after confirming supported payment/authorization mechanisms.
