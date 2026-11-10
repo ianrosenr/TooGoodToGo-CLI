@@ -12,7 +12,7 @@ def test_priority_skips_unaffordable_and_is_idempotent():
     db.executescript("""
         CREATE TABLE bags (id INTEGER PRIMARY KEY, priority INTEGER, arm_date TEXT,
             enabled INTEGER, status TEXT, price_cents INTEGER);
-        CREATE TABLE observations (bag_id INTEGER, arm_date TEXT, available INTEGER);
+        CREATE TABLE observations (id INTEGER PRIMARY KEY,bag_id INTEGER, arm_date TEXT, available INTEGER);
         CREATE TABLE purchase_limits (id INTEGER PRIMARY KEY, max_cents INTEGER, max_bags INTEGER);
         CREATE TABLE purchase_reservations (id INTEGER PRIMARY KEY, bag_id INTEGER,
             purchase_day TEXT, price_cents INTEGER, state TEXT,
