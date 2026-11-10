@@ -1,9 +1,9 @@
 # Next action
 
-1. Test background scheduler across restarts and timezones; add persistent session occurrence ID and missed-window behavior.
-2. Add bag URLs/IDs and read-only monitoring adapter with safe mock mode.
-3. Add authentication, Pi systemd unit, backup and secure phone access.
-4. Investigate guest checkout and Apple Pay feasibility without bypassing authorization.
-5. Add guarded purchase state machine, notifications and visible-browser end-to-end tests.
+1. Build read-only monitoring adapter and mock inventory events; separate scheduling ticks from network polling.
+2. Define configurable active-window polling with exponential backoff on 429/5xx, jitter and rate caps; no aggressive retry outside authorized limits.
+3. Persist session and purchase idempotency state; add tests.
+4. Secure Pi deployment and visible-browser end-to-end testing.
+5. Investigate checkout feasibility and implement explicit safeguards before purchase is enabled.
 
-Do not use headless browser testing. Validate before enabling checkout.
+No headless browser testing. No real network purchases enabled.

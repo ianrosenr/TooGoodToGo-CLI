@@ -124,8 +124,8 @@ def expire_sessions(db, now=None):
                        (b["id"],))
 
 
-def scheduler_loop(interval_seconds=5):
-    """Tick session state without relying on browser refreshes.
+def scheduler_loop(interval_seconds=0.25):
+    """Tick session state frequently without relying on browser refreshes.
 
     Database transactions are committed per tick; failures are logged and
     retried on the next tick rather than terminating the web server.
@@ -233,5 +233,9 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     initialize()
     print("Dashboard: http://127.0.0.1:8765 (local only; no checkout)")
-    Thread(target=scheduler_loop, daemon=True, name="bag-scheduler").start()
+    tick_seconds = float(os.environ.get("TGTG_SCHEDULER_TICK_SECONDS", "0.25"))
+    if not 0.05 <= tick_seconds <= 60:
+        raise ValueError("TGTG_SCHEDULER_TICK_SECONDS must be between 0.05 and 60")
+    Thread(target=scheduler_loop, args=(tick_seconds,), daemon=True,
+           name="bag-scheduler").start()
     ThreadingHTTPServer(("127.0.0.1", 8765), Handler).serve_forever()

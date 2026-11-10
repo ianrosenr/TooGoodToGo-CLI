@@ -1,19 +1,16 @@
 # Project context
 
 ## Goal
-Raspberry Pi 5 prioritized bag watchlist with scheduled monitoring and guarded checkout.
+Raspberry Pi 5 prioritized bag dashboard, precise schedules and guarded checkout.
 
 ## Merged
-- PR #1: local SQLite dashboard.
-- PR #2: session state fixes and regression tests.
-- PR #3: mobile pointer priority reorder.
-- PR #4: daily/weekday/weekend schedules and configurable windows; custom-window timeout fix.
+- PR #1 dashboard; #2 scheduler tests/state; #3 touch priority; #4 schedules/windows; #5 independent background scheduler.
 
 ## Current PR
-- Independent background scheduler tick every five seconds, with transaction commit and error isolation.
-- No Too Good To Go network monitoring or purchase integration.
-- Restart-safe schedule occurrence persistence, DST handling, and complete tests still pending.
-- No visible browser test executed in this chat.
+- Local scheduler tick defaults to 250ms, configurable with TGTG_SCHEDULER_TICK_SECONDS (0.05–60 seconds).
+- This is **local scheduling only**, not Too Good To Go inventory polling.
+- Future inventory polling needs rate-limit/backoff and terms review; default proposal 1s only while active, adjustable based on observed limits.
+- Immediate purchase event handling still unimplemented.
 
 ## Constraints
-Medium thinking; visible non-headless browser testing only. No unauthenticated remote exposure, no stored payment secrets. Every PR updates context.md and next.md.
+Medium thinking, non-headless browser tests, no unauthenticated remote access, no stored payment secrets. Every PR updates context.md and next.md.
