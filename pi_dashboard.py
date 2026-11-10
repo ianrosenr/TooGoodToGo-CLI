@@ -78,7 +78,7 @@ def initialize():
         db.execute("""CREATE TABLE IF NOT EXISTS bags (
             id INTEGER PRIMARY KEY, name TEXT NOT NULL, drop_time TEXT NOT NULL,
             priority INTEGER NOT NULL, enabled INTEGER NOT NULL DEFAULT 0,
-            status TEXT NOT NULL DEFAULT 'armed', last_session TEXT,
+            status TEXT NOT NULL DEFAULT 'disabled', last_session TEXT,
             window_minutes INTEGER NOT NULL DEFAULT 5,
             days TEXT NOT NULL DEFAULT 'all', arm_date TEXT)""")
         cols = {row[1] for row in db.execute("PRAGMA table_info(bags)")}
@@ -201,11 +201,11 @@ class Handler(BaseHTTPRequestHandler):
             if "days" in body and body["days"] not in ("all", "weekdays", "weekends"):
                 raise ValueError("Invalid days")
             with LOCK, connect() as db:
+                row = db.execute("SELECT * FROM bags WHERE id=?", (bag_id,)).fetchone()
+                if row is None:
+                    raise ValueError("Bag not found")
                 if "enabled" in body:
-                    row = db.execute("SELECT * FROM bags WHERE id=?", (bag_id,)).fetchone()
-                    if row is None:
-                        raise ValueError("Bag not found")
-                    arm_date = next_arm_date(dict(row), datetime.now(TZ)) if body["enabled"] else None
+                    arm_date = next_arm_date(dict(row) | body, datetime.now(TZ)) if body["enabled"] else None
                     db.execute("UPDATE bags SET enabled=?,status=?,last_session=NULL,arm_date=? WHERE id=?",
                                (int(body["enabled"]), "armed" if body["enabled"] else "disabled", arm_date, bag_id))
                 if "drop_time" in body:
@@ -214,6 +214,11 @@ class Handler(BaseHTTPRequestHandler):
                     db.execute("UPDATE bags SET window_minutes=? WHERE id=?", (body["window_minutes"], bag_id))
                 if "days" in body:
                     db.execute("UPDATE bags SET days=? WHERE id=?", (body["days"], bag_id))
+                if row["enabled"] and "enabled" not in body and any(k in body for k in ("drop_time", "window_minutes", "days")):
+                    new_date = next_arm_date(dict(row) | body, datetime.now(TZ))
+                    db.execute("UPDATE bags SET arm_date=?,status='armed',last_session=NULL WHERE id=?",
+                               (new_date, bag_id))
+                expire_sessions(db)
             self.respond(200, {"ok": True})
         except (ValueError, TypeError, json.JSONDecodeError) as e:
             self.respond(400, {"error": str(e)})
