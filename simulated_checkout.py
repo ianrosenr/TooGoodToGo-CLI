@@ -36,3 +36,27 @@ def simulate_checkout(db, now: datetime):
         )
         confirmed.append(bag["id"])
     return confirmed
+
+
+def recover_simulated_reservations(db):
+    """Complete durable simulated pending rows after a process restart.
+
+    Never releases reserved budget or initiates a remote checkout.
+    """
+    if not db.in_transaction:
+        db.execute("BEGIN IMMEDIATE")
+    pending = db.execute(
+        "SELECT bag_id FROM purchase_reservations WHERE state='pending' "
+        "ORDER BY id"
+    ).fetchall()
+    for row in pending:
+        db.execute(
+            "UPDATE purchase_reservations SET state='confirmed' "
+            "WHERE bag_id=? AND state='pending'",
+            (row["bag_id"],),
+        )
+        db.execute(
+            "UPDATE bags SET enabled=0,status='simulated_purchased' WHERE id=?",
+            (row["bag_id"],),
+        )
+    return len(pending)
