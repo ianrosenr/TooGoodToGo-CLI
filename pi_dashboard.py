@@ -161,7 +161,7 @@ def observe_simulated(db, source, now=None):
             continue
         result = source.check(bag["id"])
         previous = db.execute(
-            "SELECT available FROM observations WHERE bag_id=? AND arm_date=? ORDER BY id DESC LIMIT 1",
+            "SELECT id,available FROM observations WHERE bag_id=? AND arm_date=? ORDER BY id DESC LIMIT 1",
             (bag["id"], bag["arm_date"]),
         ).fetchone()
         if previous is not None and bool(previous["available"]) == bool(result.available):
@@ -173,10 +173,8 @@ def observe_simulated(db, source, now=None):
             )
         else:
             db.execute(
-                "UPDATE observations SET observed_at=?,available=? "
-                "WHERE bag_id=? AND arm_date=? AND available=?",
-                (now.isoformat(), int(result.available), bag["id"], bag["arm_date"],
-                 int(previous["available"])),
+                "UPDATE observations SET observed_at=?,available=? WHERE id=?",
+                (now.isoformat(), int(result.available), previous["id"]),
             )
         if result.available:
             events.append({"bag_id": bag["id"], "arm_date": bag["arm_date"],
