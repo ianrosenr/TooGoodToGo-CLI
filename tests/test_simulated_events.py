@@ -16,7 +16,8 @@ def test_simulated_event_is_deduplicated_per_arm_date():
         CREATE TABLE bags (
             id INTEGER PRIMARY KEY, name TEXT, drop_time TEXT, priority INTEGER,
             enabled INTEGER, status TEXT, last_session TEXT,
-            window_minutes INTEGER, days TEXT, arm_date TEXT
+            window_minutes INTEGER, days TEXT, arm_date TEXT,
+            last_checked_at TEXT, last_check_available INTEGER
         );
         CREATE TABLE observations (
             id INTEGER PRIMARY KEY, bag_id INTEGER NOT NULL,
@@ -24,7 +25,7 @@ def test_simulated_event_is_deduplicated_per_arm_date():
             available INTEGER NOT NULL,
             UNIQUE(bag_id, arm_date, available)
         );
-        INSERT INTO bags VALUES (1,'Test','12:00',1,1,'armed',NULL,5,'all','2026-11-09');
+        INSERT INTO bags (id,name,drop_time,priority,enabled,status,last_session,window_minutes,days,arm_date) VALUES (1,'Test','12:00',1,1,'armed',NULL,5,'all','2026-11-09');
     """)
     now = datetime(2026, 11, 9, 12, 1, tzinfo=TZ)
     expire_sessions(db, now)
@@ -64,3 +65,31 @@ def test_availability_can_cycle_without_stale_true_state():
     assert db.execute(
         "SELECT available FROM observations ORDER BY id DESC LIMIT 1"
     ).fetchone()[0] == 1
+
+
+def test_repeated_checks_update_timestamp_even_without_transition():
+    db = sqlite3.connect(":memory:")
+    db.row_factory = sqlite3.Row
+    db.executescript("""
+        CREATE TABLE bags (
+            id INTEGER PRIMARY KEY, enabled INTEGER, status TEXT,
+            arm_date TEXT, last_checked_at TEXT, last_check_available INTEGER
+        );
+        CREATE TABLE observations (
+            id INTEGER PRIMARY KEY, bag_id INTEGER, arm_date TEXT,
+            observed_at TEXT, available INTEGER,
+            UNIQUE(bag_id, arm_date, available)
+        );
+        INSERT INTO bags(id,enabled,status,arm_date)
+            VALUES(1,1,'watching','2026-11-09');
+    """)
+    first = datetime(2026, 11, 9, 12, 1, tzinfo=TZ)
+    second = datetime(2026, 11, 9, 12, 2, tzinfo=TZ)
+    assert observe_simulated(db, SimulatedAvailability([]), first) == []
+    assert observe_simulated(db, SimulatedAvailability([]), second) == []
+    bag = db.execute(
+        "SELECT last_checked_at,last_check_available FROM bags WHERE id=1"
+    ).fetchone()
+    assert bag["last_checked_at"] == second.isoformat()
+    assert bag["last_check_available"] == 0
+    assert db.execute("SELECT COUNT(*) FROM observations").fetchone()[0] == 1
